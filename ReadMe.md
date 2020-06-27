@@ -10,12 +10,7 @@
 ## Usage
 Program that let's you play a synthesizer using your keyboard.
 
->|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
->|   | S |   |   | F | | G |   |   | J | | K | | L |   |   |
->|   |___|   |   |___| |___|   |   |___| |___| |___|   |   |__
->|     |     |     |     |     |     |     |     |     |     |
->|  Z  |  X  |  C  |  V  |  B  |  N  |  M  |  ,  |  .  |  /  |
->|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
+![Keyboard layout](/Keyboard.png)
 
 Left/Right Arrow Keys: Change the Waveform
 
