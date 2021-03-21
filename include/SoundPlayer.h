@@ -15,7 +15,7 @@
 #define OSC_NOISE 4
 
 static double(*waveFunction)(double, int) = NULL;
-static int waveType = OSC_SINE;
+static int waveType = OSC_TRIANGLE;
 
 typedef struct {
     unsigned int sampleRate;
