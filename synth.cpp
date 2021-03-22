@@ -1,20 +1,21 @@
 //#include "rtaudio/RtAudio.h"
-#include <X11/Xlib.h>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+// #include <X11/Xlib.h>
 //#include <string>
 #include <iostream>
 #include <cstdlib>
 #include <cmath>
-//#include <thread>
+#include <array>
+#include <algorithm>
 
 #include "SoundPlayer.h"
 
 #define KEY_LEFT 75
 #define KEY_RIGHT 77
-
-Display *display;
-Window window;
-XEvent report;
-
+// zsxcfvgbnjmk,l./
+std::array<int, 16> NOTE_KEYS = {90, 83, 88, 67, 70, 86, 71, 66, 78, 73, 77, 75, 44, 76, 46, 47};
+bool keys[1024];
 
 struct EnvelopeADSR
 {
@@ -79,61 +80,38 @@ struct EnvelopeADSR
 
 std::vector<EnvelopeADSR> frequs (16, EnvelopeADSR());
 
-void checkKeys(SoundPlayer *soundMaker)
+void processInput(SoundPlayer *soundMaker)
 {
-    unsigned short retriggered = 0;
-    XEvent nextEv;
-    std::string notes = "zsxcfvgbnjmk,l./"; 
-    //char notes[] = {'z','s','x','c','f','v','g','b','n','j','m','k',',','l','.','/'};
-    //char *notes = "zsxcfvgbnjmk,l./";
-    while (1) {
-        XNextEvent(display, &report);
-        //std::cout << "notes0 after event poll " << (sizeof(notes)/sizeof(*notes)) << std::endl;
-        switch (report.type) {
-            case KeyPress:
-                std::cout << "key #" << (char) (XLookupKeysym(&report.xkey, 0))<< " was pressed.\n";
-                for (int k=0; k<16; k++) {
-                    if (notes[k] == (char) XLookupKeysym(&report.xkey, 0)) {
-                        frequs[k].noteOn = true;
-                        frequs[k].noteStart(soundMaker->getStreamTime());
-                        std::cout << "note on time: " << frequs[k].onTime << std::endl;
-                    }
-                }
-                if ((char)XLookupKeysym(&report.xkey, 0) == 'S') {
-                    soundMaker->setWaveType(abs((soundMaker->getWaveType() + 1) % 5));
-                    std::cout << soundMaker->getWaveType() << std::endl;
-                }
-                if ((char)XLookupKeysym(&report.xkey, 0) == 'Q') {
-                    soundMaker->setWaveType(abs((soundMaker->getWaveType() - 1) % 5));
-                }                
-                if ((char)XLookupKeysym(&report.xkey, 0) == 'q') {return;}
-                
-                break;
-            case KeyRelease:
-                retriggered = 0;
-                if (XEventsQueued(display, QueuedAfterReading)) {
-                    XPeekEvent(display, &nextEv);
-                    if (nextEv.type == KeyPress && nextEv.xkey.time == report.xkey.time && nextEv.xkey.keycode == report.xkey.keycode) 
-                    {
-                        // delete retriggered KeyPress event
-                        XNextEvent(display, &report);
-                        retriggered = 1;
-                    }
-                }
-
-                if (!retriggered) {
-                    for (int k=0; k<16; k++) {
-                        if (notes[k] == (char) XLookupKeysym(&report.xkey, 0)) {
-                            frequs[k].noteOn = false;
-                            frequs[k].noteEnd(soundMaker->audio.getStreamTime());
-                        }
-                    }
-                    std::cout << "key #" << (long) XLookupKeysym (&report.xkey, 0) << " was released.\n";
-                }
-                break;
+    for (auto k=0; k<NOTE_KEYS.size(); k++)
+    {
+        // note turned on
+        if (!frequs[k].noteOn && keys[NOTE_KEYS[k]])
+        {
+            frequs[k].noteOn = true;
+            frequs[k].noteStart(soundMaker->getStreamTime());
         }
-        // std::cout << frequ << std::endl;
+        //note turned off
+        else if (frequs[k].noteOn && !keys[NOTE_KEYS[k]])
+        {
+            frequs[k].noteOn = false;
+            frequs[k].noteEnd(soundMaker->audio.getStreamTime());
+        }
+
     }
+
+    if (keys[GLFW_KEY_RIGHT])
+    {
+        soundMaker->setWaveType(abs((soundMaker->getWaveType() + 1) % 5));
+        std::cout << soundMaker->getWaveType() << std::endl;
+        keys[GLFW_KEY_RIGHT] = false;
+    }
+    if (keys[GLFW_KEY_LEFT])
+    {
+        soundMaker->setWaveType(abs((soundMaker->getWaveType() - 1) % 5));
+        std::cout << soundMaker->getWaveType() << std::endl;
+        keys[GLFW_KEY_LEFT] = false;
+    }
+    
     return;
 }
 
@@ -177,16 +155,31 @@ double oscillator(double xtime, int osc = OSC_SINE)
     return output*0.2;
 }
 
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        { glfwSetWindowShouldClose(window, true); }
+
+    if (key >= 0 && key < 1024)
+    {
+        if (action == GLFW_PRESS)
+        { keys[key] = true; }
+        else if (action == GLFW_RELEASE)
+        { keys[key] = false; }
+    }
+}
+
+
 
 
 int main()
 {
-    display = XOpenDisplay(NULL);
-    window = XCreateSimpleWindow(display, RootWindow (display, 0), 1, 1, 500, 500,
-        0, BlackPixel (display, 0), BlackPixel (display, 0));
-    XSelectInput(display, window, KeyPressMask | KeyReleaseMask);
-    XMapWindow(display, window);
-    XFlush(display);
+    
 
 	// Display a keyboard
 	std::cout << std::endl <<
@@ -200,10 +193,51 @@ int main()
 
     //std::cout << std::this_thread::get_id() << std::endl;
 
-    SoundPlayer soundMaker;
-    soundMaker.setWaveFunction(&oscillator);
-    soundMaker.startStream();
-    checkKeys(&soundMaker);
+    SoundPlayer *soundMaker = new SoundPlayer;
+    
+    soundMaker->setWaveFunction(&oscillator);
+    std::cout << "before loop" << std::endl;
+    soundMaker->startStream();
+    
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow *window = glfwCreateWindow(1280, 720, "SYNTH", NULL, NULL);
+    if (window == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+
+    glViewport(0, 0, 1280, 720);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetKeyCallback(window, key_callback);
+    
+    glClearColor(140/255, 205.0/255, 220.0/255, 1.0);
+    
+    while(!glfwWindowShouldClose(window))
+    {
+        processInput(soundMaker);
+
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    glfwTerminate();
+    delete soundMaker;
 
     return 0;
 }
