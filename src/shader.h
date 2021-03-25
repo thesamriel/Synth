@@ -120,6 +120,11 @@ public:
         glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
     }
 
+    void setFloat3(const std::string &name, float* value) const
+    {
+        glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, value);
+    }
+
 
 };
 

@@ -10,12 +10,15 @@
 #include <algorithm>
 
 #include "SoundPlayer.h"
+#include "rectangle.h"
 
 #define KEY_LEFT 75
 #define KEY_RIGHT 77
 // zsxcfvgbnjmk,l./
-std::array<int, 16> NOTE_KEYS = {90, 83, 88, 67, 70, 86, 71, 66, 78, 73, 77, 75, 44, 76, 46, 47};
+std::array<int, 16> NOTE_KEYS = {90, 83, 88, 67, 70, 86, 71, 66, 78, 74, 77, 75, 44, 76, 46, 47};
 bool keys[1024];
+std::array<unsigned int, 11> whiteKeys = {0, 2, 3, 5, 6, 7, 8, 10, 12, 14, 15};
+std::array<unsigned int, 6> blackKeys = {1, 4, 6, 9, 11, 13};
 
 struct EnvelopeADSR
 {
@@ -79,6 +82,7 @@ struct EnvelopeADSR
 };
 
 std::vector<EnvelopeADSR> frequs (16, EnvelopeADSR());
+std::vector<Rectangle> keyRectangles;
 
 void processInput(SoundPlayer *soundMaker)
 {
@@ -89,12 +93,24 @@ void processInput(SoundPlayer *soundMaker)
         {
             frequs[k].noteOn = true;
             frequs[k].noteStart(soundMaker->getStreamTime());
+            float green[] = {0.0, 1.0, 0.0};
+            keyRectangles[k].setColor(green);
         }
         //note turned off
         else if (frequs[k].noteOn && !keys[NOTE_KEYS[k]])
         {
             frequs[k].noteOn = false;
             frequs[k].noteEnd(soundMaker->audio.getStreamTime());
+
+            auto it = std::find(blackKeys.begin(), blackKeys.end(), k);
+            if (it == blackKeys.end()) {
+                float white[] {1.0, 1.0, 1.0};
+                keyRectangles[k].setColor(white);                
+            }
+            else {
+                float black[] {0.0, 0.0, 0.0};
+                keyRectangles[k].setColor(black);
+            }
         }
 
     }
@@ -196,7 +212,6 @@ int main()
     SoundPlayer *soundMaker = new SoundPlayer;
     
     soundMaker->setWaveFunction(&oscillator);
-    std::cout << "before loop" << std::endl;
     soundMaker->startStream();
     
     glfwInit();
@@ -225,12 +240,39 @@ int main()
     glfwSetKeyCallback(window, key_callback);
     
     glClearColor(140/255, 205.0/255, 220.0/255, 1.0);
-    
+    Rectangle baseRec = Rectangle(140, 1140, 100, 600, 1280, 720);
+    float black[] = {0.0, 0.0, 0.0};
+    baseRec.setColor(black);
+
+    for (auto i=0; i<10; i++)
+    {
+        keyRectangles.emplace_back(140 + i*100, 240+i*100, 100, 400, 1280, 720);
+    }
+
+    keyRectangles.insert(keyRectangles.begin()+1, Rectangle(215, 265, 200, 400, 1280, 720));
+    keyRectangles.insert(keyRectangles.begin()+4, Rectangle(415, 465, 200, 400, 1280, 720));
+    keyRectangles.insert(keyRectangles.begin()+6, Rectangle(515, 565, 200, 400, 1280, 720));
+    keyRectangles.insert(keyRectangles.begin()+9, Rectangle(715, 765, 200, 400, 1280, 720));
+    keyRectangles.insert(keyRectangles.begin()+11, Rectangle(815, 865, 200, 400, 1280, 720));
+    keyRectangles.insert(keyRectangles.begin()+13, Rectangle(915, 965, 200, 400, 1280, 720));
+    for (auto &ind : blackKeys) {
+        keyRectangles[ind].setColor(black);
+    }
+
+
     while(!glfwWindowShouldClose(window))
     {
         processInput(soundMaker);
 
         glClear(GL_COLOR_BUFFER_BIT);
+        
+        baseRec.draw();
+        for (auto &i : whiteKeys) {
+            keyRectangles[i].draw();
+        }
+        for (auto &i : blackKeys) {
+            keyRectangles[i].draw();
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
